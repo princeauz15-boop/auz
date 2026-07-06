@@ -1,0 +1,96 @@
+// This is your Prisma schema file
+// Learn more: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Admin {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      String   @default("admin")
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("admins")
+}
+
+model Employee {
+  id           String       @id @default(cuid())
+  employeeId   String       @unique
+  name         String
+  email        String       @unique
+  password     String
+  phone        String?
+  department   String
+  designation  String
+  avatar       String?
+  joiningDate  DateTime
+  salary       Float?
+  status       String       @default("active")
+  role         String       @default("employee")
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  attendances  Attendance[]
+
+  @@map("employees")
+}
+
+model Attendance {
+  id             String    @id @default(cuid())
+  employeeId     String
+  employee       Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date           DateTime
+  clockIn        DateTime?
+  clockOut       DateTime?
+  workingHours   Float?    @default(0)
+  lateMinutes    Int?      @default(0)
+  earlyLeaving   Int?      @default(0)
+  overtime       Float?    @default(0)
+  status         String    @default("absent") // present, absent, late, half-day, holiday, weekend
+  isHalfDay      Boolean   @default(false)
+  note           String?
+  correctedBy    String?
+  correctedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([employeeId, date])
+  @@map("attendance")
+}
+
+model CompanySettings {
+  id                  String   @id @default(cuid())
+  companyName         String   @default("Smart Attendance Co.")
+  officeStartTime     String   @default("09:00")
+  officeEndTime       String   @default("18:00")
+  standardWorkHours   Float    @default(8)
+  graceTimeMinutes    Int      @default(15)
+  weeklyOff           String   @default("Saturday,Sunday")
+  halfDayHours        Float    @default(4)
+  overtimeThreshold   Float    @default(8)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@map("company_settings")
+}
+
+model Holiday {
+  id          String   @id @default(cuid())
+  name        String
+  date        DateTime
+  description String?
+  type        String   @default("public") // public, optional
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("holidays")
+}
