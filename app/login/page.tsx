@@ -162,14 +162,7 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Demo credentials */}
-          <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-            <p className="text-xs font-medium text-blue-700 dark:text-blue-400 mb-2">Demo Credentials:</p>
-            <div className="text-xs text-blue-600 dark:text-blue-300 space-y-1">
-              <p><strong>Admin:</strong> admin@smartattendance.com / admin123</p>
-              <p><strong>Employee:</strong> prince@company.com / emp123</p>
-            </div>
-          </div>
+          
         </div>
       </div>
     </div>
