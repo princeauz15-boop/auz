@@ -54,8 +54,7 @@ export default function LoginPage() {
         });
       } else {
         toast({ title: "Welcome back!", description: "Login successful." });
-        router.push(data.role === "admin" ? "/admin/dashboard" : "/employee/dashboard");
-        router.refresh();
+        window.location.href = data.role === "admin" ? "/admin/dashboard" : "/employee/dashboard";
       }
     } catch {
       toast({ title: "Error", description: "Something went wrong.", variant: "destructive" });
