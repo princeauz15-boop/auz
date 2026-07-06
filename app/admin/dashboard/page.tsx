@@ -63,7 +63,21 @@ export default function AdminDashboard() {
     );
   }
 
-  if (!data) return null;
+  if (!data || !data.stats) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <p className="text-gray-500 dark:text-gray-400 mb-2">Failed to load dashboard data.</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="text-blue-600 hover:underline text-sm"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const { stats, recentAttendance } = data;
 
