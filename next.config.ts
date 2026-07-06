@@ -2,12 +2,23 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   eslint: {
-    // Disable ESLint during production builds
     ignoreDuringBuilds: true,
   },
   typescript: {
-    // Also ignore TypeScript errors during builds if any slip through
     ignoreBuildErrors: true,
+  },
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      // Don't bundle server-only packages in client bundle
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        ws: false,
+        net: false,
+        tls: false,
+        fs: false,
+      };
+    }
+    return config;
   },
 };
 
