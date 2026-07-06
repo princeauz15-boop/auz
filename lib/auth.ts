@@ -19,48 +19,53 @@ export const authConfig: NextAuthConfig = {
 
         const role = (credentials.role as string) || "employee";
 
-        if (role === "admin") {
-          const admin = await prisma.admin.findUnique({
-            where: { email: credentials.email as string },
-          });
+        try {
+          if (role === "admin") {
+            const admin = await prisma.admin.findUnique({
+              where: { email: credentials.email as string },
+            });
 
-          if (!admin) return null;
+            if (!admin) return null;
 
-          const isValid = await bcrypt.compare(
-            credentials.password as string,
-            admin.password
-          );
-          if (!isValid) return null;
+            const isValid = await bcrypt.compare(
+              credentials.password as string,
+              admin.password
+            );
+            if (!isValid) return null;
 
-          return {
-            id: admin.id,
-            email: admin.email,
-            name: admin.name,
-            role: "admin",
-            avatar: admin.avatar || null,
-          };
-        } else {
-          const employee = await prisma.employee.findUnique({
-            where: { email: credentials.email as string },
-          });
+            return {
+              id: admin.id,
+              email: admin.email,
+              name: admin.name,
+              role: "admin",
+              avatar: admin.avatar || null,
+            };
+          } else {
+            const employee = await prisma.employee.findUnique({
+              where: { email: credentials.email as string },
+            });
 
-          if (!employee || employee.status !== "active") return null;
+            if (!employee || employee.status !== "active") return null;
 
-          const isValid = await bcrypt.compare(
-            credentials.password as string,
-            employee.password
-          );
-          if (!isValid) return null;
+            const isValid = await bcrypt.compare(
+              credentials.password as string,
+              employee.password
+            );
+            if (!isValid) return null;
 
-          return {
-            id: employee.id,
-            email: employee.email,
-            name: employee.name,
-            role: "employee",
-            employeeId: employee.employeeId,
-            department: employee.department,
-            avatar: employee.avatar || null,
-          };
+            return {
+              id: employee.id,
+              email: employee.email,
+              name: employee.name,
+              role: "employee",
+              employeeId: employee.employeeId,
+              department: employee.department,
+              avatar: employee.avatar || null,
+            };
+          }
+        } catch (error) {
+          console.error("[AUTH ERROR]", error);
+          return null;
         }
       },
     }),
