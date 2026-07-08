@@ -177,7 +177,7 @@ export default function EmployeesPage() {
               <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
             </div>
           ) : (
-            <div className="overflow-x-auto -mx-6">
+            <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-280px)] -mx-6">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
