@@ -69,6 +69,7 @@ export default function EmployeesPage() {
     const params = new URLSearchParams();
     if (search) params.set("search", search);
     if (department) params.set("department", department);
+    params.set("limit", "1000");
     const res = await fetch(`/api/admin/employees?${params}`);
     const data = await res.json();
     setEmployees(data.employees || []);

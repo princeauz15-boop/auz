@@ -16,7 +16,7 @@ interface DashboardData {
     totalEmployees: number;
     presentToday: number;
     absentToday: number;
-    lateToday: number;
+    lateToday: number;remove 
     workingHours: number;
     overtime: number;
     attendancePercentage: number;
