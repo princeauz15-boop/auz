@@ -17,17 +17,17 @@ export async function POST(request: NextRequest) {
 
   const employeeId = session.user.id;
 
-  // Check if already clocked in today
+  // Find today's attendance record
   const existing = await prisma.attendance.findFirst({
-    where: {
-      employeeId,
-      date: { gte: today, lte: todayEnd },
-    },
+    where: { employeeId, date: { gte: today, lte: todayEnd } },
+    include: { sessions: { orderBy: { clockIn: "asc" } } },
   });
 
+  // If there's an open session (clocked in but not clocked out) → reject
   if (existing) {
-    if (existing.clockIn) {
-      return NextResponse.json({ error: "Already clocked in today" }, { status: 400 });
+    const openSession = existing.sessions.find((s) => !s.clockOut);
+    if (openSession) {
+      return NextResponse.json({ error: "Already clocked in. Please clock out first." }, { status: 400 });
     }
   }
 
@@ -39,7 +39,6 @@ export async function POST(request: NextRequest) {
   if (weekend) status = "weekend";
   else if (holiday) status = "holiday";
   else {
-    // Check if late
     const [startHour, startMin] = settings.officeStartTime.split(":").map(Number);
     const officeStart = new Date(now);
     officeStart.setHours(startHour, startMin, 0, 0);
@@ -47,24 +46,30 @@ export async function POST(request: NextRequest) {
     if (now > graceDeadline) status = "late";
   }
 
+  // Upsert attendance record (keeps the same record for the whole day)
   const attendance = await prisma.attendance.upsert({
-    where: {
-      employeeId_date: {
-        employeeId,
-        date: today,
-      },
-    },
-    create: {
-      employeeId,
-      date: today,
-      clockIn: now,
-      status,
-    },
+    where: { employeeId_date: { employeeId, date: today } },
+    create: { employeeId, date: today, status },
     update: {
-      clockIn: now,
-      status,
+      // Keep status as "late" if first clock-in was late
+      status: existing?.status === "late" ? "late" : status,
     },
   });
 
-  return NextResponse.json({ attendance, message: "Clocked in successfully" });
+  // Open a new session
+  const newSession = await prisma.attendanceSession.create({
+    data: {
+      attendanceId: attendance.id,
+      employeeId,
+      clockIn: now,
+    },
+  });
+
+  // Refresh with all sessions for response
+  const updated = await prisma.attendance.findUnique({
+    where: { id: attendance.id },
+    include: { sessions: { orderBy: { clockIn: "asc" } } },
+  });
+
+  return NextResponse.json({ attendance: updated, session: newSession, message: "Clocked in successfully" });
 }

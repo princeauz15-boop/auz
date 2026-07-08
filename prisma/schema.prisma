@@ -62,6 +62,7 @@ model Attendance {
   correctedAt    DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
+  sessions       AttendanceSession[]
 
   @@unique([employeeId, date])
   @@map("attendance")
@@ -93,4 +94,20 @@ model Holiday {
   updatedAt   DateTime @updatedAt
 
   @@map("holidays")
+}
+
+// Tracks individual clock-in/clock-out sessions within a single day
+// One Attendance record can have multiple AttendanceSession records
+model AttendanceSession {
+  id           String     @id @default(cuid())
+  attendanceId String
+  attendance   Attendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+  employeeId   String
+  clockIn      DateTime
+  clockOut     DateTime?
+  durationHours Float?    @default(0)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@map("attendance_sessions")
 }

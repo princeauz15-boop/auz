@@ -38,6 +38,7 @@ export async function GET(request: NextRequest) {
       date: { gte: start, lte: end },
     },
     orderBy: { date: "desc" },
+    include: { sessions: { orderBy: { clockIn: "asc" } } },
   });
 
   // Summary

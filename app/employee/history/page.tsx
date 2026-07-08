@@ -9,6 +9,13 @@ import { Button } from "@/components/ui/button";
 import { formatDate, formatTime, formatDuration, getStatusColor } from "@/lib/utils";
 import { exportToExcel, exportToCSV, exportToPDF } from "@/lib/export";
 
+interface AttendanceSession {
+  id: string;
+  clockIn: string;
+  clockOut: string | null;
+  durationHours: number | null;
+}
+
 interface AttendanceRecord {
   id: string;
   date: string;
@@ -19,6 +26,7 @@ interface AttendanceRecord {
   earlyLeaving: number | null;
   overtime: number | null;
   status: string;
+  sessions?: AttendanceSession[];
 }
 
 export default function HistoryPage() {
@@ -101,8 +109,7 @@ export default function HistoryPage() {
                   <tr className="border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
                     <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Date</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Day</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Clock In</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Clock Out</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Sessions / Timeline</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Working Hrs</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Late</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Overtime</th>
@@ -112,7 +119,7 @@ export default function HistoryPage() {
                 <tbody>
                   {filtered.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="text-center py-12 text-gray-400">
+                      <td colSpan={7} className="text-center py-12 text-gray-400">
                         <History className="w-10 h-10 mx-auto mb-2 opacity-40" />
                         No records found
                       </td>
@@ -121,13 +128,60 @@ export default function HistoryPage() {
                     filtered.map((r) => {
                       const d = new Date(r.date);
                       const dayName = d.toLocaleDateString("en", { weekday: "short" });
+                      const sessions = r.sessions ?? [];
+                      const hasMulti = sessions.length > 1;
+
                       return (
                         <tr key={r.id} className="border-b border-gray-50 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
-                          <td className="px-6 py-3 font-medium text-gray-900 dark:text-white">{formatDate(r.date)}</td>
+                          <td className="px-6 py-3 font-medium text-gray-900 dark:text-white whitespace-nowrap">{formatDate(r.date)}</td>
                           <td className="px-4 py-3 text-gray-500 dark:text-gray-400">{dayName}</td>
-                          <td className="px-4 py-3 text-green-600 font-medium">{formatTime(r.clockIn)}</td>
-                          <td className="px-4 py-3 text-red-500 font-medium">{formatTime(r.clockOut)}</td>
-                          <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{formatDuration(r.workingHours || 0)}</td>
+
+                          {/* Sessions / Timeline cell */}
+                          <td className="px-4 py-3">
+                            {sessions.length === 0 ? (
+                              <span className="text-gray-400 text-xs">—</span>
+                            ) : sessions.length === 1 ? (
+                              // Single session — compact in/out
+                              <div className="flex items-center gap-2 text-xs">
+                                <span className="text-green-600 font-semibold">{formatTime(sessions[0].clockIn)}</span>
+                                <span className="text-gray-400">→</span>
+                                <span className="text-red-500 font-semibold">{formatTime(sessions[0].clockOut)}</span>
+                              </div>
+                            ) : (
+                              // Multiple sessions — show timeline pills
+                              <div className="flex flex-wrap items-center gap-1">
+                                {sessions.map((s, idx) => {
+                                  const prev = idx > 0 ? sessions[idx - 1] : null;
+                                  const breakMins = prev?.clockOut
+                                    ? Math.round((new Date(s.clockIn).getTime() - new Date(prev.clockOut).getTime()) / 60000)
+                                    : null;
+                                  const durMins = s.durationHours != null
+                                    ? Math.round(s.durationHours * 60)
+                                    : null;
+
+                                  return (
+                                    <div key={s.id} className="flex items-center gap-1">
+                                      {breakMins !== null && breakMins > 0 && (
+                                        <span className="px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-300 text-[10px] font-medium">
+                                          Break {breakMins}m
+                                        </span>
+                                      )}
+                                      <span className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-xs font-medium text-gray-700 dark:text-gray-300">
+                                        <span className="text-green-600">{formatTime(s.clockIn)}</span>
+                                        <span className="text-gray-400">→</span>
+                                        <span className="text-red-500">{formatTime(s.clockOut)}</span>
+                                        {durMins !== null && (
+                                          <span className="text-gray-400 text-[10px]">({durMins}m)</span>
+                                        )}
+                                      </span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </td>
+
+                          <td className="px-4 py-3 text-gray-700 dark:text-gray-300 font-medium">{formatDuration(r.workingHours || 0)}</td>
                           <td className="px-4 py-3 text-yellow-600">{r.lateMinutes ? `${r.lateMinutes}m` : "-"}</td>
                           <td className="px-4 py-3 text-purple-600">{r.overtime ? formatDuration(r.overtime) : "-"}</td>
                           <td className="px-4 py-3">
