@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Plus, Loader2, Calendar, Clock } from "lucide-react";
+import { Plus, Loader2, Calendar, Clock, Edit2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -57,6 +57,12 @@ export default function AttendancePage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [form, setForm] = useState(defaultForm);
   const [saving, setSaving] = useState(false);
+
+  // Edit dialog
+  const [editRecord, setEditRecord] = useState<AttendanceRecord | null>(null);
+  const [editForm, setEditForm] = useState({ clockIn: "", clockOut: "", status: "present", note: "" });
+  const [editSaving, setEditSaving] = useState(false);
+
   const { toast } = useToast();
 
   const fetchAttendance = useCallback(async () => {
@@ -127,8 +133,55 @@ export default function AttendancePage() {
     }
   };
 
+  const openEdit = (record: AttendanceRecord) => {
+    const toTimeStr = (iso: string | null) => {
+      if (!iso) return "";
+      const d = new Date(iso);
+      return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+    };
+    setEditForm({
+      clockIn: toTimeStr(record.clockIn),
+      clockOut: toTimeStr(record.clockOut),
+      status: record.status,
+      note: "",
+    });
+    setEditRecord(record);
+  };
+
+  const handleEdit = async () => {
+    if (!editRecord) return;
+    const buildDT = (dateStr: string, timeStr: string) => {
+      if (!timeStr) return null;
+      return `${dateStr.split("T")[0]}T${timeStr}:00`;
+    };
+    const recordDate = editRecord.date.split("T")[0];
+    setEditSaving(true);
+    try {
+      const res = await fetch(`/api/admin/attendance/${editRecord.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clockIn: buildDT(recordDate, editForm.clockIn),
+          clockOut: buildDT(recordDate, editForm.clockOut),
+          status: editForm.status,
+          note: editForm.note || null,
+        }),
+      });
+      if (res.ok) {
+        toast({ title: "Attendance updated!" });
+        setEditRecord(null);
+        fetchAttendance();
+      } else {
+        const err = await res.json();
+        toast({ title: "Error", description: err.error, variant: "destructive" });
+      }
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
   const statusCounts = {
-    present: records.filter((r) => r.status === "present").length,
+    present: records.filter((r) => r.status === "present" || r.status === "late").length,
     late: records.filter((r) => r.status === "late").length,
     absent: records.filter((r) => r.status === "absent").length,
     halfDay: records.filter((r) => r.status === "half-day").length,
@@ -199,6 +252,7 @@ export default function AttendancePage() {
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Late Min</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Overtime</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -237,6 +291,17 @@ export default function AttendancePage() {
                           <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${getStatusColor(record.status)}`}>
                             {record.status}
                           </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => openEdit(record)}
+                            title="Edit clock in/out"
+                            className="hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/20"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </Button>
                         </td>
                       </tr>
                     ))
@@ -368,6 +433,99 @@ export default function AttendancePage() {
                   <Plus className="w-4 h-4" />
                   Add Record
                 </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Edit Attendance Dialog ── */}
+      <Dialog open={!!editRecord} onOpenChange={() => setEditRecord(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Attendance</DialogTitle>
+            {editRecord && (
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                {editRecord.employee.name} &mdash; {new Date(editRecord.date).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric" })}
+              </p>
+            )}
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Clock In / Out */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Clock In
+                </label>
+                <Input
+                  type="time"
+                  value={editForm.clockIn}
+                  onChange={(e) => setEditForm((p) => ({ ...p, clockIn: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Clock Out
+                </label>
+                <Input
+                  type="time"
+                  value={editForm.clockOut}
+                  onChange={(e) => setEditForm((p) => ({ ...p, clockOut: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            {/* Status */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Status
+              </label>
+              <Select
+                value={editForm.status}
+                onChange={(e) => setEditForm((p) => ({ ...p, status: e.target.value }))}
+                className="w-full"
+              >
+                {STATUS_OPTIONS.map((s) => (
+                  <option key={s} value={s} className="capitalize">{s}</option>
+                ))}
+              </Select>
+            </div>
+
+            {/* Note */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Note / Reason
+              </label>
+              <Input
+                placeholder="Optional correction note..."
+                value={editForm.note}
+                onChange={(e) => setEditForm((p) => ({ ...p, note: e.target.value }))}
+              />
+            </div>
+
+            {editForm.clockIn && editForm.clockOut && (
+              <div className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                <Clock className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                <p className="text-xs text-blue-700 dark:text-blue-300">
+                  Working hours, overtime, and late minutes will be auto-recalculated.
+                </p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditRecord(null)} disabled={editSaving}>
+              Cancel
+            </Button>
+            <Button onClick={handleEdit} disabled={editSaving}>
+              {editSaving ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Update"
               )}
             </Button>
           </DialogFooter>
